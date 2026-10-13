@@ -29,7 +29,26 @@ pub async fn test(imap: &mut ImapConnection, imap_check: &mut ImapConnection, te
     imap.send("SEARCH RETURN (MIN MAX COUNT ALL) ALL").await;
     imap.assert_read(Type::Tagged, ResponseType::Ok)
         .await
-        .assert_contains("COUNT 10 MIN 1 MAX 10 ALL 1,10");
+        .assert_contains("COUNT 10 MIN 1 MAX 10 ALL 1:10");
+
+    // SAVE with only MIN and MAX keeps those two, with ALL it keeps every match (RFC 5182 section 2.4)
+    imap.send("SEARCH RETURN (SAVE MIN MAX) ALL").await;
+    imap.assert_read(Type::Tagged, ResponseType::Ok)
+        .await
+        .assert_contains("MIN 1 MAX 10");
+    imap.send("SEARCH $").await;
+    imap.assert_read(Type::Tagged, ResponseType::Ok)
+        .await
+        .assert_contains("ALL 1,10");
+    imap.send("SEARCH RETURN (SAVE MIN MAX ALL) ALL").await;
+    imap.assert_read(Type::Tagged, ResponseType::Ok)
+        .await
+        .assert_contains("MIN 1 MAX 10 ALL 1:10");
+    imap.send("SEARCH $").await;
+    imap.assert_read(Type::Tagged, ResponseType::Ok)
+        .await
+        .assert_contains("ALL 1:10");
+
     imap_check.send("UID SEARCH ALL").await;
     imap_check
         .assert_read(Type::Tagged, ResponseType::Ok)
